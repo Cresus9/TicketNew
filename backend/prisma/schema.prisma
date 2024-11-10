@@ -1,0 +1,346 @@
+// This is your Prisma schema file
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TicketStatus {
+  VALID
+  USED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum NotificationType {
+  EVENT_REMINDER
+  TICKET_PURCHASED
+  PRICE_CHANGE
+  EVENT_CANCELLED
+  EVENT_UPDATED
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  PAYMENT_PENDING
+  TICKET_USED
+  TICKET_CANCELLED
+  SYSTEM
+}
+
+model User {
+  id                     String                  @id @default(uuid())
+  email                  String                  @unique
+  password               String
+  name                   String
+  avatar                 String?      
+  phone                  String?
+  role                   Role                    @default(USER)
+  status                 UserStatus              @default(ACTIVE)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  lastLogin              DateTime?
+  isOnline               Boolean                 @default(false)
+  lastSeen               DateTime?
+  orders                 Order[]
+  tickets                Ticket[]
+  notifications          Notification[]
+  notificationPreference NotificationPreference?
+  pushTokens             PushToken[]
+  webSocketSessions      WebSocketSession[]
+  paymentLogs            PaymentLog[]
+  userActivities         UserActivity[]
+  eventAttendees         EventAttendee[]
+  securityLogs           SecurityLog[]  // One-to-many relation with SecurityLog
+
+  // **Added Inverse Relations**
+  chatMessages           ChatMessage[] // Inverse relation for ChatMessage
+  scheduledNotifications ScheduledNotification[] // Inverse relation for ScheduledNotification
+}
+
+model Event {
+  id             String          @id @default(uuid())
+  title          String
+  description    String
+  date           DateTime
+  time           String
+  location       String
+  imageUrl       String
+  price          Float
+  currency       String
+  capacity       Int
+  ticketsSold    Int             @default(0)
+  status         EventStatus     @default(DRAFT)
+  categories     String[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  orders         Order[]
+  tickets        Ticket[]
+  ticketTypes    TicketType[]
+  chatMessages   ChatMessage[]
+  eventAttendees EventAttendee[]
+}
+
+model EventAttendee {
+  id       String   @id @default(uuid())
+  event    Event    @relation(fields: [eventId], references: [id])
+  eventId  String
+  user     User     @relation(fields: [userId], references: [id])
+  userId   String
+  joinedAt DateTime @default(now())
+
+  @@unique([userId, eventId])
+}
+
+model Order {
+  id             String       @id @default(uuid())
+  user           User         @relation(fields: [userId], references: [id])
+  userId         String
+  event          Event        @relation(fields: [eventId], references: [id])
+  eventId        String
+  total          Float
+  status         OrderStatus  @default(PENDING)
+  paymentMethod  String
+  paymentDetails Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  tickets        Ticket[]
+  payments       Payment[]
+  paymentLogs    PaymentLog[]
+}
+
+model Ticket {
+  id           String       @id @default(uuid())
+  order        Order        @relation(fields: [orderId], references: [id])
+  orderId      String
+  event        Event        @relation(fields: [eventId], references: [id])
+  eventId      String
+  user         User         @relation(fields: [userId], references: [id])
+  userId       String
+  ticketType   TicketType   @relation("TicketTypeTickets", fields: [ticketTypeId], references: [id])
+  ticketTypeId String
+  qrCode       String       @unique
+  status       TicketStatus @default(VALID)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+// prisma/schema.prisma
+
+model TicketType {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  price       Float
+  quantity    Int
+  maxPerOrder Int
+  available   Int
+  event       Event    @relation(fields: [eventId], references: [id])
+  eventId     String
+  tickets     Ticket[] @relation("TicketTypeTickets")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  order         Order         @relation(fields: [orderId], references: [id])
+  orderId       String
+  amount        Float
+  currency      String
+  method        String
+  status        PaymentStatus @default(PENDING)
+  transactionId String?
+  details       Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model PaymentLog {
+  id            String   @id @default(uuid())
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String
+  order         Order    @relation(fields: [orderId], references: [id])
+  orderId       String
+  amount        Float
+  currency      String
+  method        String
+  status        String
+  error         String?
+  transactionId String?
+  details       Json?
+  createdAt     DateTime @default(now())
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  user      User             @relation(fields: [userId], references: [id])
+  userId    String
+  title     String
+  message   String
+  type      NotificationType
+  read      Boolean          @default(false)
+  metadata  Json?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
+
+model NotificationPreference {
+  id     String             @id @default(uuid())
+  user   User               @relation(fields: [userId], references: [id])
+  userId String             @unique
+  email  Boolean            @default(true)
+  push   Boolean            @default(true)
+  types  NotificationType[]
+}
+
+model PushToken {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  token     String   @unique
+  device    String?
+  createdAt DateTime @default(now())
+}
+
+model WebSocketSession {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  socketId  String   @unique
+  connected DateTime @default(now())
+  lastPing  DateTime @default(now())
+  metadata  Json?
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  event     Event    @relation(fields: [eventId], references: [id])
+  eventId   String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model UserActivity {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  action    String
+  details   Json?
+  timestamp DateTime @default(now())
+}
+
+model Page {
+  id              String   @id @default(uuid())
+  title           String
+  slug            String   @unique
+  content         String
+  metaTitle       String?
+  metaDescription String?
+  published       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Banner {
+  id          String   @id @default(uuid())
+  title       String
+  imageUrl    String
+  link        String?
+  description String?
+  order       Int
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Faq {
+  id        String   @id @default(uuid())
+  question  String
+  answer    String
+  category  String
+  order     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SearchLog {
+  id        String   @id @default(uuid())
+  query     String
+  userId    String?
+  timestamp DateTime @default(now())
+}
+
+model SecurityLog {
+  id        String   @id @default(uuid())
+  action    String
+  ip        String
+  userId    String?
+  details   String
+  severity  String
+  user      User?    @relation(fields: [userId], references: [id])
+  timestamp DateTime @default(now())
+}
+
+model BlockedIP {
+  id        String   @id @default(uuid())
+  ip        String   @unique
+  reason    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model ScheduledNotification {
+  id            String           @id @default(uuid())
+  title         String
+  message       String
+  userId        String
+  type          NotificationType
+  metadata      Json?
+  sendEmail     Boolean          @default(true)
+  sendPush      Boolean          @default(true)
+  scheduledFor  DateTime
+  sent          Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
