@@ -1,6 +1,7 @@
 {
   "name": "afritix-backend",
   "version": "0.0.1",
+  "type": "module",
   "description": "AfriTix Event Ticketing Platform API",
   "private": true,
   "license": "UNLICENSED",
@@ -42,6 +43,8 @@
     "cache-manager-redis-yet": "^5.1.5",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "multer": "^1.4.5-lts.1",
+    "nest-winston": "^1.9.7",
     "nestjs-pino": "^4.1.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
@@ -51,7 +54,9 @@
     "prom-client": "^15.1.0",
     "reflect-metadata": "^0.2.1",
     "rxjs": "^7.8.1",
-    "socket.io": "^4.7.4"
+    "socket.io": "^4.7.4",
+    "winston": "^3.17.0",
+    "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.3.2",
@@ -61,6 +66,7 @@
     "@types/cache-manager-redis-store": "^2.0.4",
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.12",
+    "@types/multer": "^1.4.12",
     "@types/node": "^20.11.19",
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
@@ -80,6 +86,7 @@
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.6.3",
+    "vite-plugin-checker": "^0.8.0"
   }
 }

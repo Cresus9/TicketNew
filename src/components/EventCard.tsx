@@ -1,6 +1,6 @@
 import React from 'react';
-import { Calendar, MapPin, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Calendar, MapPin, Clock } from 'lucide-react';
 
 interface EventCardProps {
   id: string;
@@ -24,7 +24,7 @@ export default function EventCard({
   currency
 }: EventCardProps) {
   return (
-    <Link to={`/events/${id}`} className="group">
+    <Link to={`/events/${id}`} className="block group">
       <div className="bg-white rounded-xl shadow-sm overflow-hidden transition-transform duration-300 group-hover:shadow-lg group-hover:-translate-y-1">
         <div className="relative h-48">
           <img

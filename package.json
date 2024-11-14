@@ -31,7 +31,7 @@
     "react-hot-toast": "^2.4.1",
     "react-image-gallery": "^1.3.0",
     "react-query": "^3.39.3",
-    "react-router-dom": "^6.22.3",
+    "react-router-dom": "^6.28.0",
     "socket.io-client": "^4.7.4",
     "winston": "^3.16.0",
     "winston-daily-rotate-file": "^5.0.0"

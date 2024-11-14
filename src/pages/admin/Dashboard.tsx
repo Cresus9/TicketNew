@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Users, Calendar, DollarSign, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AdminMetricCard from '../../components/admin/AdminMetricCard';
@@ -6,37 +6,26 @@ import AdminChart from '../../components/admin/AdminChart';
 import { analyticsService } from '../../services/analyticsService';
 import { formatCurrency } from '../../utils/formatters';
 
-interface DashboardStats {
-  totalUsers: number;
-  totalEvents: number;
-  totalRevenue: number;
-  ticketsSold: number;
-  recentOrders: any[];
-  userGrowth: any[];
-  salesByCategory: any[];
-}
-
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchDashboardStats = async () => {
+  React.useEffect(() => {
+    const fetchStats = async () => {
       try {
         setLoading(true);
         const data = await analyticsService.getDashboardStats();
         setStats(data);
-        setError(null);
-      } catch (err) {
+      } catch (err: any) {
         setError('Failed to load dashboard data');
-        console.error('Error fetching dashboard stats:', err);
+        console.error('Error fetching stats:', err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDashboardStats();
+    fetchStats();
   }, []);
 
   if (loading) {
@@ -148,7 +137,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {stats.recentOrders.map((order) => (
+                {stats.recentOrders.map((order: any) => (
                   <tr key={order.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 text-sm text-gray-900">#{order.id}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{order.user.name}</td>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, Ticket } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Mail, Lock, Ticket, AlertCircle, Eye, EyeOff, ArrowRight } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -10,12 +10,12 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = (location.state as any)?.from?.pathname || '/dashboard';
+  const from = (location.state as any)?.from?.pathname || '/';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +31,8 @@ export default function Login() {
       }
       navigate(from, { replace: true });
     } catch (error: any) {
-      setError(error.message || 'Invalid email or password');
+      console.error('Login error:', error);
+      setError(error.response?.data?.message || 'Invalid email or password');
     } finally {
       setIsLoading(false);
     }
@@ -134,10 +135,7 @@ export default function Login() {
                   <span>Signing in...</span>
                 </>
               ) : (
-                <>
-                  <span>Sign in</span>
-                  <ArrowRight className="h-5 w-5" />
-                </>
+                'Sign in'
               )}
             </button>
           </form>
@@ -145,7 +143,7 @@ export default function Login() {
           <p className="mt-8 text-center text-sm text-gray-600">
             Don't have an account?{' '}
             <Link to="/signup" className="font-medium text-indigo-600 hover:text-indigo-500">
-              Sign up for free
+              Sign up
             </Link>
           </p>
         </div>

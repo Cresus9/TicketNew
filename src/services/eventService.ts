@@ -1,58 +1,31 @@
-import { mockEventService } from './mockData';
-import { Event } from './mockData';
+import { api } from './api';
+import { Event } from '../../backend/src/types/event'
 
 export const eventService = {
   getAll: async (): Promise<Event[]> => {
-    try {
-      return await mockEventService.getAll();
-    } catch (error) {
-      console.error('Error fetching events:', error);
-      throw error;
-    }
+    const response = await api.get('/api/events');
+    return response.data;
   },
 
-  getById: async (id: string): Promise<Event | undefined> => {
-    try {
-      return await mockEventService.getById(id);
-    } catch (error) {
-      console.error('Error fetching event:', error);
-      throw error;
-    }
+  getById: async (id: string): Promise<Event> => {
+    const response = await api.get(`/api/events/${id}`);
+    return response.data;
   },
 
-  getFeaturedEvents: async (): Promise<Event[]> => {
-    try {
-      return await mockEventService.getFeaturedEvents();
-    } catch (error) {
-      console.error('Error fetching featured events:', error);
-      throw error;
-    }
+  getFeatured: async (): Promise<Event[]> => {
+    const response = await api.get('/api/events/featured');
+    return response.data;
   },
 
-  create: async (event: Omit<Event, 'id'>): Promise<Event> => {
-    try {
-      return await mockEventService.create(event);
-    } catch (error) {
-      console.error('Error creating event:', error);
-      throw error;
-    }
-  },
-
-  update: async (id: string, event: Partial<Event>): Promise<Event> => {
-    try {
-      return await mockEventService.update(id, event);
-    } catch (error) {
-      console.error('Error updating event:', error);
-      throw error;
-    }
-  },
-
-  delete: async (id: string): Promise<void> => {
-    try {
-      await mockEventService.delete(id);
-    } catch (error) {
-      console.error('Error deleting event:', error);
-      throw error;
-    }
+  search: async (params: {
+    query?: string;
+    category?: string;
+    location?: string;
+    date?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{ events: Event[]; total: number; page: number; totalPages: number }> => {
+    const response = await api.get('/api/events/search', { params });
+    return response.data;
   }
 };

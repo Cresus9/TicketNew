@@ -1,40 +1,34 @@
-// src/prisma/prisma.service.ts
-
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import { Logger } from '@nestjs/common';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(PrismaService.name);
-
-  constructor() {
-    super({
-      log: ['query', 'info', 'warn', 'error'],
-    });
-  }
-
   async onModuleInit() {
     await this.$connect();
-    // this.enableShutdownHooks();
-    this.logger.log('Prisma Client connected');
   }
 
   async onModuleDestroy() {
     await this.$disconnect();
-    this.logger.log('Prisma Client disconnected');
   }
 
-  // private enableShutdownHooks() {
-  //   this.$on('beforeExit', async () => {
-  //     // Perform any necessary cleanup before exiting
-  //     this.logger.log('Prisma Client is shutting down');
-  //   });
-  // }
-  // async enableShutdownHooksApp(app: INestApplication) {
-  //   this.$on('beforeExit', async () => {
-  //     await app.close();
-  //     this.logger.log('Prisma Client is shutting down and NestJS application is closed.');
-  //   });
-  // }
+  async enableShutdownHooks(app) {
+    app.enableShutdownHooks();
+    const shutdown = async () => {
+      await this.$disconnect();
+      process.exit(0);
+    };
+
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
+  }
+
+  async cleanDatabase() {
+    if (process.env.NODE_ENV === 'development') {
+      const models = Reflect.ownKeys(this).filter(key => key[0] !== '_');
+      
+      return Promise.all(
+        models.map(modelKey => (this as any)[modelKey].deleteMany())
+      );
+    }
+  }
 }

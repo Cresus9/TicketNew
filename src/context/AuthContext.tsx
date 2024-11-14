@@ -1,91 +1,100 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authAPI } from '../services/api';
+import React, { createContext, useContext, useState } from 'react';
+import { authService } from '../services/authService';
 import toast from 'react-hot-toast';
 
 interface User {
   id: string;
-  email: string;
   name: string;
-  role: 'user' | 'admin';
+  email: string;
+  role: string;
 }
 
-interface AuthContextType {
+export interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  isLoading: boolean;
+  isAdmin: boolean;
+  loading: boolean;
+  token: string | null;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
+  logout: () => void;
+}
+
+interface RegisterData {
+  name: string;
+  email: string;
+  password: string;
+  phone?: string;
+  role?: 'USER' | 'ADMIN';
+  adminCode?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState<string | null>(authService.getToken());
 
-  useEffect(() => {
-    refreshUser();
-  }, []);
-
-  const refreshUser = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setIsLoading(false);
-        return;
+  React.useEffect(() => {
+    const initAuth = async () => {
+      if (authService.isAuthenticated()) {
+        try {
+          const userData = await authService.getProfile();
+          setUser(userData);
+        } catch (error) {
+          authService.removeToken();
+          setToken(null);
+        }
       }
+      setLoading(false);
+    };
 
-      const userData = await authAPI.getProfile();
-      setUser(userData);
-    } catch (error) {
-      localStorage.removeItem('token');
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    initAuth();
+  }, []);
 
   const login = async (email: string, password: string) => {
     try {
-      setIsLoading(true);
-      const { user: userData, token } = await authAPI.login(email, password);
-      localStorage.setItem('token', token);
-      setUser(userData);
-      toast.success('Login successful');
+      const response = await authService.login({ email, password });
+      setUser(response.user);
+      setToken(response.access_token);
+      toast.success('Successfully logged in!');
     } catch (error: any) {
-      localStorage.removeItem('token');
-      const message = error.message || 'Login failed. Please try again.';
-      toast.error(message);
+      console.error('Login error:', error);
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const logout = async () => {
+  const register = async (data: RegisterData) => {
     try {
-      await authAPI.logout();
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      localStorage.removeItem('token');
-      setUser(null);
-      toast.success('Logged out successfully');
+      const response = await authService.register(data);
+      setUser(response.user);
+      setToken(response.access_token);
+      toast.success('Account created successfully!');
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      throw error;
     }
+  };
+
+  const logout = () => {
+    authService.removeToken();
+    setUser(null);
+    setToken(null);
+    toast.success('Logged out successfully');
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isLoading,
-        login,
-        logout,
-        refreshUser
-      }}
-    >
+    <AuthContext.Provider value={{
+      user,
+      isAuthenticated: !!user,
+      isAdmin: user?.role === 'ADMIN',
+      loading,
+      token,
+      login,
+      register,
+      logout
+    }}>
       {children}
     </AuthContext.Provider>
   );

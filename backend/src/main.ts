@@ -1,52 +1,37 @@
-// src/main.ts
-
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { Logger } from 'winston';
-import { WinstonModule } from 'nest-winston';
-import * as winston from 'winston';
-
 import { AppModule } from './app.module';
-// Removed Prisma shutdown hook as handled within PrismaService
+import { PrismaService } from './prisma/prisma.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Enable CORS
+  // Enable CORS with proper configuration
   app.enableCors({
-    origin: process.env.FRONTEND_URL?.split(',') || ['http://localhost:5173'],
+    origin: process.env.NODE_ENV === 'production' 
+      ? process.env.FRONTEND_URL 
+      : ['http://localhost:5173', 'http://127.0.0.1:5173'],
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   });
-  // app.useLogger(app.get(Logger));
 
   // Global prefix
   app.setGlobalPrefix('api');
 
   // Global validation pipe
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true, // Strip properties without decorators
-      transform: true, // Automatically transform payloads to DTO instances
-      forbidNonWhitelisted: true, // Throw errors on unknown properties
-    }),
-  );
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    transform: true,
+  }));
 
-  // Swagger setup
-  const config = new DocumentBuilder()
-    .setTitle('AfriTix API')
-    .setDescription('The AfriTix event ticketing platform API')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api-docs', app, document);
+  // Prisma shutdown hook
+  const prismaService = app.get(PrismaService);
+  await prismaService.enableShutdownHooks(app);
 
-  // Start server
   const port = process.env.PORT || 3000;
   await app.listen(port);
   console.log(`Application is running on: http://localhost:${port}`);
-  console.log(`API Documentation available at: http://localhost:${port}/api-docs`);
 }
 
 bootstrap();
