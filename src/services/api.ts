@@ -1,19 +1,16 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-// Get base URL from environment variable, remove /auth if present
-const baseURL = (import.meta.env.VITE_API_URL || 'http://localhost:3000')
-
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export const api = axios.create({
-  baseURL,
+  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json'
   },
   withCredentials: true
 });
 
-// Request interceptor - Add auth token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -21,28 +18,21 @@ api.interceptors.request.use((config) => {
   }
   return config;
 }, (error) => {
-  console.error('Request error:', error);
   return Promise.reject(error);
 });
 
-// Response interceptor - Handle errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('Response error:', error);
-
-    // Handle network errors
     if (!error.response) {
       toast.error('Network error. Please check your connection.');
       return Promise.reject(new Error('Network error'));
     }
 
-    // Get error message from response or use default
     const message = error.response?.data?.message || 
                    error.response?.data?.error || 
                    'An unexpected error occurred';
     
-    // Handle specific status codes
     switch (error.response.status) {
       case 401:
         localStorage.removeItem('token');
@@ -68,5 +58,3 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-export default api;

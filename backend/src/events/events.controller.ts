@@ -68,6 +68,8 @@ export class EventsController {
     return this.eventsService.findOne(id);
   }
 
+  
+
   @Put(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)

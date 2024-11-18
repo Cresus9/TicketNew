@@ -1,72 +1,67 @@
-import { orderAPI } from './api';
+import { api } from './api';
 
-export interface OrderData {
+export interface Order {
   id: string;
   userId: string;
   eventId: string;
-  tickets: {
-    type: string;
-    quantity: number;
-    price: number;
-  }[];
   total: number;
-  status: 'pending' | 'completed' | 'cancelled';
+  status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
   paymentMethod: string;
   createdAt: string;
-}
-
-export interface TicketData {
-  id: string;
-  orderId: string;
-  eventId: string;
-  type: string;
-  qrCode: string;
-  status: 'valid' | 'used' | 'cancelled';
+  updatedAt: string;
+  user: {
+    name: string;
+    email: string;
+  };
+  event: {
+    title: string;
+  };
+  tickets: Array<{
+    id: string;
+    ticketType: {
+      name: string;
+      price: number;
+    };
+  }>;
 }
 
 class OrderService {
-  async createOrder(orderData: Omit<OrderData, 'id' | 'status' | 'createdAt'>): Promise<OrderData> {
-    const response = await orderAPI.create(orderData);
+  async getOrders(params: {
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    limit?: number;
+  } = {}) {
+    const response = await api.get('/api/orders', { params });
     return response.data;
   }
 
-  async getOrderById(id: string): Promise<OrderData> {
-    const response = await orderAPI.getById(id);
+  async getOrderById(id: string) {
+    const response = await api.get(`/api/orders/${id}`);
     return response.data;
   }
 
-  async getUserOrders(): Promise<OrderData[]> {
-    const response = await orderAPI.getUserOrders();
+  async updateOrderStatus(id: string, status: string) {
+    const response = await api.patch(`/api/orders/${id}/status`, { status });
     return response.data;
   }
 
-  async updateOrderStatus(id: string, status: OrderData['status']): Promise<OrderData> {
-    const response = await orderAPI.updateStatus(id, status);
+  async refundOrder(id: string, reason: string) {
+    const response = await api.post(`/api/orders/${id}/refund`, { reason });
     return response.data;
   }
 
-  async getOrderTickets(id: string): Promise<TicketData[]> {
-    const response = await orderAPI.getTickets(id);
+  async exportOrders(params: {
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+  } = {}) {
+    const response = await api.get('/api/orders/export', { 
+      params,
+      responseType: 'blob'
+    });
     return response.data;
-  }
-
-  async processPayment(
-    orderId: string,
-    paymentData: {
-      method: string;
-      amount: number;
-      currency: string;
-      details: any;
-    }
-  ): Promise<{ success: boolean; transactionId?: string }> {
-    try {
-      // In a real app, this would integrate with a payment gateway
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate processing
-      return { success: true, transactionId: `TX-${Date.now()}` };
-    } catch (error) {
-      console.error('Payment processing error:', error);
-      return { success: false };
-    }
   }
 }
 

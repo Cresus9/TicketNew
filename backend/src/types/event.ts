@@ -6,28 +6,14 @@ export interface Event {
   time: string;
   location: string;
   imageUrl: string;
-  ticketTypes: TicketType[];
+  price: number;
   currency: string;
-  organizer: {
-    id: string;
-    name: string;
-    logo?: string;
-  };
+  capacity: number;
+  ticketsSold: number;
+  status: 'DRAFT' | 'PUBLISHED' | 'CANCELLED' | 'COMPLETED';
   categories: string[];
-  status: 'upcoming' | 'ongoing' | 'past' | 'cancelled';
-  venue: {
-    name: string;
-    address: string;
-    city: string;
-    country: string;
-    coordinates?: {
-      lat: number;
-      lng: number;
-    };
-  };
-  features: string[];
-  ageRestriction?: string;
-  termsAndConditions: string;
+  featured?: boolean;
+  ticketTypes: TicketType[];
 }
 
 export interface TicketType {
@@ -35,23 +21,19 @@ export interface TicketType {
   name: string;
   description: string;
   price: number;
+  quantity: number;
   available: number;
   maxPerOrder: number;
-  benefits: string[];
-  salesStart: string;
-  salesEnd: string;
-  status: 'available' | 'limited' | 'soldout' | 'upcoming';
-}
-
-export interface TicketSelection {
-  [key: string]: number;
+  status: 'AVAILABLE' | 'LIMITED' | 'SOLD_OUT' | 'UPCOMING';
+  benefits?: string[];
 }
 
 export interface BookingDetails {
   eventId: string;
-  tickets: TicketSelection;
-  subtotal: number;
-  processingFee: number;
+  tickets: {
+    [ticketTypeId: string]: number;
+  };
   total: number;
   currency: string;
+  paymentMethod: string;
 }

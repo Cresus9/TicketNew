@@ -1,48 +1,47 @@
-import React, { useState } from 'react';
-import { Search, Calendar, MapPin, Users, Edit2, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search } from 'lucide-react';
 import EventCard from '../components/EventCard';
+import { eventService } from '../services/eventService';
+import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 export default function Events() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { isAdmin } = useAuth();
 
-  // Mock events data - in a real app, this would come from an API
-  const events = [
-    {
-      id: '1',
-      title: 'Afro Nation Ghana 2024',
-      date: 'Dec 15, 2024',
-      time: '18:00',
-      location: 'Accra Sports Stadium',
-      imageUrl: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea',
-      price: 150,
-      currency: 'GHS'
-    },
-    {
-      id: '2',
-      title: 'Lagos Jazz Festival',
-      date: 'Nov 20, 2024',
-      time: '19:30',
-      location: 'Eko Hotel & Suites',
-      imageUrl: 'https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae',
-      price: 200,
-      currency: 'GHS'
-    },
-    {
-      id: '3',
-      title: 'African Athletics Championship',
-      date: 'Sep 10, 2024',
-      time: '09:00',
-      location: 'National Stadium, Nairobi',
-      imageUrl: 'https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff',
-      price: 100,
-      currency: 'GHS'
-    }
-  ];
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        setLoading(true);
+        const data = await eventService.getEvents({
+          status: isAdmin ? undefined : 'PUBLISHED' // Only fetch published events for regular users
+        });
+        setEvents(data);
+      } catch (error) {
+        console.error('Error fetching events:', error);
+        toast.error('Failed to load events');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEvents();
+  }, [isAdmin]);
 
   const filteredEvents = events.filter(event =>
     event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     event.location.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">

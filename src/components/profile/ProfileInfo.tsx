@@ -1,22 +1,72 @@
-import React, { useState } from 'react';
-import { Camera } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Camera, Loader } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { userService } from '../../services/userService';
+import toast from 'react-hot-toast';
 
 export default function ProfileInfo() {
-  const { user } = useAuth();
+  const { user, updateUserData } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
-    phone: '',
-    location: '',
-    bio: ''
+    phone: user?.phone || '',
+    location: user?.location || '',
+    bio: user?.bio || ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement profile update
-    setIsEditing(false);
+    setIsSubmitting(true);
+
+    try {
+      const updatedUser = await userService.updateProfile({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone || undefined,
+        location: formData.location || undefined,
+        bio: formData.bio || undefined
+      });
+      
+      updateUserData(updatedUser);
+      setIsEditing(false);
+      toast.success('Profile updated successfully');
+    } catch (error: any) {
+      console.error('Error updating profile:', error);
+      toast.error(error.response?.data?.message || 'Failed to update profile');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const avatarUrl = await userService.uploadAvatar(file);
+      updateUserData({ ...user, avatar: avatarUrl });
+      toast.success('Profile picture updated successfully');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to upload profile picture');
+    } finally {
+      setUploadingAvatar(false);
+    }
   };
 
   return (
@@ -35,24 +85,47 @@ export default function ProfileInfo() {
         {/* Profile Picture */}
         <div className="flex items-center gap-6">
           <div className="relative">
-            <div className="w-24 h-24 rounded-full bg-indigo-100 flex items-center justify-center">
-              <span className="text-3xl font-bold text-indigo-600">
-                {formData.name.charAt(0)}
-              </span>
+            <div className="w-24 h-24 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden">
+              {user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={user.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-3xl font-bold text-indigo-600">
+                  {formData.name.charAt(0)}
+                </span>
+              )}
             </div>
             {isEditing && (
-              <button
-                type="button"
-                className="absolute bottom-0 right-0 p-2 bg-white rounded-full shadow-sm border border-gray-200 hover:bg-gray-50"
-              >
-                <Camera className="h-4 w-4 text-gray-600" />
-              </button>
+              <>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleAvatarChange}
+                  accept="image/*"
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="absolute bottom-0 right-0 p-2 bg-white rounded-full shadow-sm border border-gray-200 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {uploadingAvatar ? (
+                    <Loader className="h-4 w-4 text-gray-600 animate-spin" />
+                  ) : (
+                    <Camera className="h-4 w-4 text-gray-600" />
+                  )}
+                </button>
+              </>
             )}
           </div>
           {isEditing && (
             <div className="text-sm text-gray-600">
               <p className="font-medium">Change profile photo</p>
-              <p>JPG, GIF or PNG. 1MB max.</p>
+              <p>JPG, GIF or PNG. 5MB max.</p>
             </div>
           )}
         </div>
@@ -69,6 +142,7 @@ export default function ProfileInfo() {
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               disabled={!isEditing}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50"
+              required
             />
           </div>
 
@@ -82,6 +156,7 @@ export default function ProfileInfo() {
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               disabled={!isEditing}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50"
+              required
             />
           </div>
 
@@ -95,6 +170,7 @@ export default function ProfileInfo() {
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               disabled={!isEditing}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50"
+              placeholder="+233 XX XXX XXXX"
             />
           </div>
 
@@ -108,6 +184,7 @@ export default function ProfileInfo() {
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               disabled={!isEditing}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50"
+              placeholder="City, Country"
             />
           </div>
 
@@ -121,6 +198,7 @@ export default function ProfileInfo() {
               disabled={!isEditing}
               rows={4}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50"
+              placeholder="Tell us about yourself..."
             />
           </div>
         </div>
@@ -136,9 +214,17 @@ export default function ProfileInfo() {
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              disabled={isSubmitting}
+              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
             >
-              Save Changes
+              {isSubmitting ? (
+                <>
+                  <Loader className="animate-spin h-4 w-4" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                'Save Changes'
+              )}
             </button>
           </div>
         )}

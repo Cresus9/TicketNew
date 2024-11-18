@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Ticket, AlertCircle } from 'lucide-react';
-import { TicketType } from '../../.././backend/src/types/event'
-import { useBooking } from '../../.././backend/src/hooks/useBooking';
+import { TicketType } from '../../types/event';
+import { useBooking } from '../../../backend/src/hooks/useBooking.ts';
 import TicketTypeCard from './TicketTypeCard';
 import BookingSummary from './BookingSummary';
 import TicketReviewModal from './TicketReviewModal';
@@ -26,23 +26,14 @@ export default function BookingForm({ eventId, ticketTypes, currency }: BookingF
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const totalTickets = Object.values(selectedTickets).reduce((a, b) => a + b, 0);
-    if (totalTickets === 0) {
-      toast.error('Please select at least one ticket');
-      return;
-    }
-
     setIsReviewModalOpen(true);
   };
 
-  const availableTickets = ticketTypes.filter(
-    ticket => ticket.status === 'available' || ticket.status === 'limited'
+  const availableTickets = ticketTypes.filter(ticket => 
+    ticket.available > 0 && ticket.status !== 'SOLD_OUT'
   );
 
-  const hasAvailableTickets = availableTickets.length > 0;
-
-  if (!hasAvailableTickets) {
+  if (availableTickets.length === 0) {
     return (
       <div className="text-center py-8">
         <h3 className="text-lg font-medium text-gray-900 mb-2">No Tickets Available</h3>
@@ -68,9 +59,8 @@ export default function BookingForm({ eventId, ticketTypes, currency }: BookingF
           {ticketTypes.map((ticket) => (
             <TicketTypeCard
               key={ticket.id}
-              eventId={eventId}
               ticket={ticket}
-              quantity={selectedTickets[ticket.id]}
+              quantity={selectedTickets[ticket.id] || 0}
               currency={currency}
               onQuantityChange={(quantity) => handleQuantityChange(ticket.id, quantity)}
             />
@@ -88,6 +78,7 @@ export default function BookingForm({ eventId, ticketTypes, currency }: BookingF
         <LoadingButton
           type="submit"
           loading={loading}
+          disabled={!Object.values(selectedTickets).some(qty => qty > 0)}
           className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Ticket className="h-5 w-5" />

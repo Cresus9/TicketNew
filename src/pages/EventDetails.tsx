@@ -1,49 +1,49 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Clock, Share2, Heart } from 'lucide-react';
+import { eventService } from '../services/eventService';
+import { useAuth } from '../context/AuthContext';
 import BookingForm from '../components/booking/BookingForm';
+import toast from 'react-hot-toast';
 
 export default function EventDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
+  const [event, setEvent] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Mock event data - in a real app, this would come from an API
-  const event = {
-    id: id || '1',
-    title: 'Afro Nation Ghana 2024',
-    description: 'Experience the biggest Afrobeats festival in Africa! Join us for an unforgettable weekend of music, culture, and celebration featuring top artists from across the continent.',
-    date: 'Dec 15, 2024',
-    time: '18:00',
-    location: 'Accra Sports Stadium',
-    imageUrl: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea',
-    ticketTypes: [
-      {
-        id: 'regular',
-        name: 'Regular Ticket',
-        description: 'General admission with access to all main stages',
-        price: 150,
-        available: 1000,
-        maxPerOrder: 4
-      },
-      {
-        id: 'vip',
-        name: 'VIP Ticket',
-        description: 'Premium viewing areas, exclusive lounges, and complimentary drinks',
-        price: 300,
-        available: 200,
-        maxPerOrder: 2
-      },
-      {
-        id: 'vvip',
-        name: 'VVIP Ticket',
-        description: 'Ultimate experience with backstage access, meet & greet, and premium amenities',
-        price: 500,
-        available: 50,
-        maxPerOrder: 2
+  useEffect(() => {
+    const fetchEvent = async () => {
+      try {
+        const data = await eventService.getEventById(id!);
+        
+        // If event is not published and user is not admin, redirect to events page
+        if (data.status !== 'PUBLISHED' && !isAdmin) {
+          navigate('/events');
+          return;
+        }
+        
+        setEvent(data);
+      } catch (error) {
+        console.error('Error fetching event:', error);
+        toast.error('Failed to load event details');
+        navigate('/events');
+      } finally {
+        setLoading(false);
       }
-    ],
-    currency: 'GHS'
-  };
+    };
+
+    fetchEvent();
+  }, [id, isAdmin, navigate]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
 
   if (!event) {
     return (
@@ -70,7 +70,7 @@ export default function EventDetails() {
               <div className="flex items-center gap-6 text-white/90">
                 <span className="flex items-center gap-2">
                   <Calendar className="h-5 w-5" />
-                  {event.date}
+                  {new Date(event.date).toLocaleDateString()}
                 </span>
                 <span className="flex items-center gap-2">
                   <Clock className="h-5 w-5" />
@@ -101,18 +101,24 @@ export default function EventDetails() {
             <h2 className="text-2xl font-bold text-gray-900 mb-4">About This Event</h2>
             <p className="text-gray-600 whitespace-pre-line">{event.description}</p>
           </div>
-
-          {/* Additional event details, lineup, etc. can be added here */}
         </div>
 
         {/* Booking Form */}
         <div className="lg:sticky lg:top-8">
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <BookingForm
-              eventId={event.id}
-              ticketTypes={event.ticketTypes}
-              currency={event.currency}
-            />
+            {event.status === 'PUBLISHED' ? (
+              <BookingForm
+                eventId={event.id}
+                ticketTypes={event.ticketTypes}
+                currency={event.currency}
+              />
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-gray-600">
+                  This event is currently not available for booking.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

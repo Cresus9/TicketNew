@@ -1,31 +1,109 @@
-import React, { useState } from 'react';
-import { Search, Mail, Phone, Shield, MoreVertical, UserX, Send } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Mail, Phone, Shield, MoreVertical, UserX, Send, AlertCircle } from 'lucide-react';
+import { userService, User, UserFilters } from '../../services/userService';
+import toast from 'react-hot-toast';
 
 export default function UserManagement() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedRole, setSelectedRole] = useState('all');
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<UserFilters>({
+    role: 'all',
+    status: 'all',
+    search: '',
+    page: 1,
+    limit: 10
+  });
 
-  // Mock users data
-  const users = [
-    {
-      id: '1',
-      name: 'John Doe',
-      email: 'john@example.com',
-      phone: '+233 20 123 4567',
-      role: 'user',
-      status: 'active',
-      joinDate: '2024-01-15'
-    },
-    {
-      id: '2',
-      name: 'Jane Smith',
-      email: 'jane@example.com',
-      phone: '+233 24 987 6543',
-      role: 'admin',
-      status: 'active',
-      joinDate: '2024-02-01'
+  useEffect(() => {
+    fetchUsers();
+  }, [filters]);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const data = await userService.getUsers(filters);
+      setUsers(data);
+      setError(null);
+    } catch (err: any) {
+      const message = err.response?.data?.message || 'Failed to fetch users';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const handleStatusChange = async (userId: string, status: string) => {
+    try {
+      await userService.updateUserStatus(userId, status);
+      toast.success('User status updated successfully');
+      fetchUsers();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update user status');
+    }
+  };
+
+  const handleRoleChange = async (userId: string, role: string) => {
+    try {
+      await userService.updateUserRole(userId, role);
+      toast.success('User role updated successfully');
+      fetchUsers();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update user role');
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) {
+      return;
+    }
+
+    try {
+      await userService.deleteUser(userId);
+      toast.success('User deleted successfully');
+      fetchUsers();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to delete user');
+    }
+  };
+
+  const handleSendNotification = async (userId: string) => {
+    const message = prompt('Enter notification message:');
+    if (!message) return;
+
+    try {
+      await userService.sendNotification(userId, message);
+      toast.success('Notification sent successfully');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to send notification');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <div className="flex items-center gap-2 text-red-600">
+          <AlertCircle className="h-5 w-5" />
+          <p>{error}</p>
+        </div>
+        <button
+          onClick={fetchUsers}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -40,19 +118,29 @@ export default function UserManagement() {
           <input
             type="text"
             placeholder="Search users..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={filters.search}
+            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
             className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
         <select
-          value={selectedRole}
-          onChange={(e) => setSelectedRole(e.target.value)}
+          value={filters.role}
+          onChange={(e) => setFilters({ ...filters, role: e.target.value })}
           className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="all">All Roles</option>
-          <option value="user">Users</option>
-          <option value="admin">Admins</option>
+          <option value="USER">Users</option>
+          <option value="ADMIN">Admins</option>
+        </select>
+        <select
+          value={filters.status}
+          onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+          className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value="all">All Status</option>
+          <option value="ACTIVE">Active</option>
+          <option value="SUSPENDED">Suspended</option>
+          <option value="BANNED">Banned</option>
         </select>
       </div>
 
@@ -91,41 +179,57 @@ export default function UserManagement() {
                         <Mail className="h-4 w-4" />
                         {user.email}
                       </div>
-                      <div className="flex items-center gap-2 text-gray-500">
-                        <Phone className="h-4 w-4" />
-                        {user.phone}
-                      </div>
+                      {user.phone && (
+                        <div className="flex items-center gap-2 text-gray-500">
+                          <Phone className="h-4 w-4" />
+                          {user.phone}
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 text-gray-500">
-                      <Shield className="h-4 w-4" />
-                      {user.role}
-                    </div>
+                    <select
+                      value={user.role}
+                      onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                      className="px-3 py-1 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="USER">User</option>
+                      <option value="ADMIN">Admin</option>
+                    </select>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      user.status === 'active'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {user.status}
-                    </span>
+                    <select
+                      value={user.status}
+                      onChange={(e) => handleStatusChange(user.id, e.target.value)}
+                      className={`px-3 py-1 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                        user.status === 'ACTIVE'
+                          ? 'bg-green-100 text-green-800 border-green-200'
+                          : user.status === 'SUSPENDED'
+                          ? 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                          : 'bg-red-100 text-red-800 border-red-200'
+                      }`}
+                    >
+                      <option value="ACTIVE">Active</option>
+                      <option value="SUSPENDED">Suspended</option>
+                      <option value="BANNED">Banned</option>
+                    </select>
                   </td>
                   <td className="px-6 py-4 text-gray-500">
-                    {new Date(user.joinDate).toLocaleDateString()}
+                    {new Date(user.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">
                       <button
+                        onClick={() => handleSendNotification(user.id)}
                         className="p-2 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-gray-100"
                         title="Send Message"
                       >
                         <Send className="h-5 w-5" />
                       </button>
                       <button
+                        onClick={() => handleDeleteUser(user.id)}
                         className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-gray-100"
-                        title="Suspend User"
+                        title="Delete User"
                       >
                         <UserX className="h-5 w-5" />
                       </button>

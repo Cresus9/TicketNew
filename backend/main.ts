@@ -30,7 +30,7 @@ async function bootstrap() {
   await prismaService.onModuleInit();
 
   // Handle shutdown
-  app.enableShutdownHooks();
+  await app.enableShutdownHooks();
 
   const port = process.env.PORT || 3000;
   await app.listen(port);

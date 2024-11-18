@@ -1,10 +1,59 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import EventCard from './EventCard';
-import { useEvents } from '../context/EventContext';
+import { eventService } from '../services/eventService';
 import { Loader } from 'lucide-react';
 
 export default function FeaturedEvents() {
-  const { featuredEvents, loading, error } = useEvents();
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // useEffect(() => {
+  //   const fetchFeaturedEvents = async () => {
+  //     try {
+  //       setLoading(true);
+  //       const data = await eventService.getEvents({
+  //         status: 'PUBLISHED',
+  //         // featured: true
+  //       });
+  //       setEvents(data);
+  //       console.log(data)
+  //     } catch (err) {
+  //       console.error('Error fetching featured events:', err);
+  //       setError('Failed to load featured events');
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
+
+  //   fetchFeaturedEvents();
+  // }, []);
+
+  useEffect(() => {
+    const fetchFeaturedEvents = async () => {
+      try {
+        setLoading(true);
+        const data = await eventService.getEvents({
+          status: 'PUBLISHED',
+        });
+        setEvents(data)
+        console.log(data)
+        // Filter events on the frontend
+        // const featuredEvents = data.filter(event => event.featured === true);
+        // setEvents(featuredEvents);
+        // console.log('Fetched Featured Events:', featuredEvents);
+      } catch (err) {
+        console.error('Error fetching events:', err);
+        setError('Failed to load featured events');
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    fetchFeaturedEvents();
+  }, []);
+  
 
   if (loading) {
     return (
@@ -25,36 +74,24 @@ export default function FeaturedEvents() {
     );
   }
 
-  if (!featuredEvents || featuredEvents.length === 0) {
-    return (
-      <div className="py-12 text-center text-gray-600">
-        <p>No featured events available at the moment.</p>
-      </div>
-    );
+  if (!events || events.length === 0) {
+    return null;
   }
 
   return (
     <section className="py-12">
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-3xl font-bold text-gray-900">Featured Events</h2>
-        <a href="/events" className="text-indigo-600 hover:text-indigo-700 font-medium">
-          View all events →
-        </a>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {featuredEvents.map((event) => (
-          <EventCard 
-            key={event.id} 
-            id={event.id}
-            title={event.title}
-            date={event.date}
-            time={event.time}
-            location={event.location}
-            imageUrl={event.imageUrl}
-            price={event.price}
-            currency={event.currency}
-          />
-        ))}
+      <div className="max-w-7xl mx-auto px-4">
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-3xl font-bold text-gray-900">Featured Events</h2>
+          <Link to="/events" className="text-indigo-600 hover:text-indigo-700">
+            View all events →
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {events.map((event) => (
+            <EventCard key={event.id} {...event} />
+          ))}
+        </div>
       </div>
     </section>
   );

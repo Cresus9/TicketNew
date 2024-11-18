@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext.tsx';
 import toast from 'react-hot-toast';
 
 export default function LoginForm() {
@@ -12,11 +12,11 @@ export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { login } = useAuth();
+  const { login, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = (location.state as any)?.from?.pathname || '/';
+  const from = (location.state as any)?.from?.pathname || (isAdmin ? '/admin' : '/dashboard');
 
   const validateForm = () => {
     if (!email.trim()) {
@@ -49,8 +49,11 @@ export default function LoginForm() {
         localStorage.removeItem('rememberedEmail');
       }
 
+      // Redirect based on role
+      const redirectPath = isAdmin ? '/admin' : '/dashboard';
+      navigate(redirectPath, { replace: true });
+      
       toast.success('Successfully logged in!');
-      navigate(from, { replace: true });
     } catch (error: any) {
       console.error('Login error:', error);
       setError(error.response?.data?.message || 'Invalid email or password');

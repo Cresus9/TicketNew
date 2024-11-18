@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Ticket, 
@@ -9,50 +9,114 @@ import {
   Users,
   ChevronRight,
   Bell,
-  Star
+  Star,
+  Loader
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useEvents } from '../context/EventContext';
+import { eventService } from '../services/eventService';
+import { bookingService } from '../services/bookingService';
+import { formatCurrency } from '../utils/formatters';
+import toast from 'react-hot-toast';
+
+interface DashboardStats {
+  upcomingEvents: number;
+  totalTickets: number;
+  savedEvents: number;
+  totalSpent: number;
+}
+
+interface Activity {
+  id: string;
+  type: 'ticket_purchase' | 'event_reminder' | 'event_saved';
+  event: string;
+  date: string;
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { events } = useEvents();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+  const [recentActivities, setRecentActivities] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data for dashboard statistics
-  const stats = {
-    upcomingEvents: 3,
-    totalTickets: 8,
-    savedEvents: 12,
-    totalSpent: 450
-  };
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch user's bookings
+        const bookings = await bookingService.getUserBookings();
+        
+        // Calculate stats
+        const upcomingBookings = bookings.filter(booking => 
+          new Date(booking.date) > new Date()
+        );
+        
+        const totalSpent = bookings.reduce((sum, booking) => sum + booking.price, 0);
+        
+        setStats({
+          upcomingEvents: upcomingBookings.length,
+          totalTickets: bookings.length,
+          savedEvents: 0, // This will be implemented when we add favorites feature
+          totalSpent
+        });
 
-  // Mock data for upcoming events
-  const upcomingEvents = events.slice(0, 3);
+        // Get upcoming events
+        const events = await eventService.getEvents({
+          status: 'PUBLISHED',
+          featured: true
+        });
+        setUpcomingEvents(events.slice(0, 3));
 
-  // Mock data for recent activities
-  const recentActivities = [
-    {
-      id: 1,
-      type: 'ticket_purchase',
-      event: 'Afro Nation Ghana 2024',
-      date: '2 hours ago',
-      icon: Ticket
-    },
-    {
-      id: 2,
-      type: 'event_reminder',
-      event: 'Lagos Jazz Festival',
-      date: '1 day ago',
-      icon: Bell
-    },
-    {
-      id: 3,
-      type: 'event_saved',
-      event: 'East African Music Summit',
-      date: '2 days ago',
-      icon: Star
-    }
-  ];
+        // Generate recent activities from bookings
+        const activities = bookings
+          .slice(0, 5)
+          .map(booking => ({
+            id: booking.id,
+            type: 'ticket_purchase' as const,
+            event: booking.eventName,
+            date: new Date(booking.createdAt).toLocaleDateString()
+          }));
+        setRecentActivities(activities);
+
+        setError(null);
+      } catch (err: any) {
+        console.error('Error fetching dashboard data:', err);
+        setError('Failed to load dashboard data');
+        toast.error('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-[400px]">
+        <div className="flex items-center gap-2">
+          <Loader className="h-6 w-6 animate-spin text-indigo-600" />
+          <span className="text-gray-600">Loading dashboard...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-600 mb-4">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -78,55 +142,59 @@ export default function Dashboard() {
       </div>
 
       {/* Statistics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-indigo-100 rounded-lg">
-              <Calendar className="h-6 w-6 text-indigo-600" />
+      {stats && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-indigo-100 rounded-lg">
+                <Calendar className="h-6 w-6 text-indigo-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Upcoming Events</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.upcomingEvents}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-gray-600">Upcoming Events</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.upcomingEvents}</p>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-green-100 rounded-lg">
+                <Ticket className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Total Tickets</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalTickets}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <Star className="h-6 w-6 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Saved Events</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.savedEvents}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-orange-100 rounded-lg">
+                <CreditCard className="h-6 w-6 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Total Spent</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {formatCurrency(stats.totalSpent, 'GHS')}
+                </p>
+              </div>
             </div>
           </div>
         </div>
-        
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <Ticket className="h-6 w-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Total Tickets</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalTickets}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <Star className="h-6 w-6 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Saved Events</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.savedEvents}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-orange-100 rounded-lg">
-              <CreditCard className="h-6 w-6 text-orange-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Total Spent</p>
-              <p className="text-2xl font-bold text-gray-900">GHS {stats.totalSpent}</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -134,7 +202,7 @@ export default function Dashboard() {
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-gray-900">Upcoming Events</h2>
-            <Link to="/profile/bookings" className="text-indigo-600 hover:text-indigo-700 text-sm">
+            <Link to="/profile/bookings" className="text-indigo-600 hover:text-indigo-700">
               View all
             </Link>
           </div>
@@ -151,7 +219,7 @@ export default function Dashboard() {
                   <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
                     <span className="flex items-center gap-1">
                       <Calendar className="h-4 w-4" />
-                      {event.date}
+                      {new Date(event.date).toLocaleDateString()}
                     </span>
                     <span className="flex items-center gap-1">
                       <Clock className="h-4 w-4" />
@@ -188,19 +256,20 @@ export default function Dashboard() {
             {recentActivities.map((activity) => (
               <div key={activity.id} className="flex items-start gap-4">
                 <div className="p-2 bg-gray-100 rounded-lg">
-                  <activity.icon className="h-5 w-5 text-gray-600" />
+                  <Ticket className="h-5 w-5 text-gray-600" />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900">
-                    {activity.type === 'ticket_purchase' && 'Purchased tickets for'}
-                    {activity.type === 'event_reminder' && 'Reminder set for'}
-                    {activity.type === 'event_saved' && 'Saved event'}
+                    Purchased tickets for
                   </p>
                   <p className="text-sm text-gray-600">{activity.event}</p>
                   <p className="text-xs text-gray-500 mt-1">{activity.date}</p>
                 </div>
               </div>
             ))}
+            {recentActivities.length === 0 && (
+              <p className="text-center text-gray-600">No recent activity</p>
+            )}
           </div>
         </div>
       </div>

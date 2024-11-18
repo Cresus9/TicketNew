@@ -1,50 +1,93 @@
-// src/events/dto/update-event.dto.ts
+import { IsString, IsNumber, IsDateString, IsArray, IsEnum, IsOptional, Min, IsUrl } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { EventStatus } from '@prisma/client';
 
-import { IsString, IsOptional, IsBoolean, IsEnum, ValidateNested, IsNumber, IsArray } from 'class-validator';
-import { Type } from 'class-transformer';
-import { NotificationType } from '@prisma/client'; // Adjust import based on your setup
-
-export class UpdateTicketTypeDto {
-  @IsOptional()
-  @IsOptional()
+class UpdateTicketTypeDto {
+  @ApiProperty()
   @IsString()
-  id?: string;
+  name: string;
 
-  @IsOptional()
+  @ApiProperty()
   @IsString()
-  name?: string;
+  description: string;
 
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @IsOptional()
+  @ApiProperty()
   @IsNumber()
-  price?: number;
+  @Min(0)
+  price: number;
 
-  @IsOptional()
+  @ApiProperty()
   @IsNumber()
-  quantity?: number;
+  @Min(0)
+  quantity: number;
 
-  @IsOptional()
+  @ApiProperty()
   @IsNumber()
-  maxPerOrder?: number;
+  @Min(1)
+  maxPerOrder: number;
 }
 
 export class UpdateEventDto {
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  name?: string;
+  title?: string;
 
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
   description?: string;
 
-  // Add other event-specific fields as needed
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsDateString()
+  date?: string;
 
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  time?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  location?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsUrl()
+  imageUrl?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  price?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  currency?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  capacity?: number;
+
+  @ApiProperty({ enum: EventStatus, required: false })
+  @IsOptional()
+  @IsEnum(EventStatus)
+  status?: EventStatus;
+
+  @ApiProperty({ type: [String], required: false })
   @IsOptional()
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => UpdateTicketTypeDto)
+  @IsString({ each: true })
+  categories?: string[];
+
+  @ApiProperty({ type: [UpdateTicketTypeDto], required: false })
+  @IsOptional()
+  @IsArray()
   ticketTypes?: UpdateTicketTypeDto[];
 }

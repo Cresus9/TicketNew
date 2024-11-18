@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TicketSelection, TicketType } from '../types/event';
-import { api } from '../../.././src/services/api';
+import { TicketType } from '../types/event';
+import { bookingService } from '../../../src/services/bookingService';
 import toast from 'react-hot-toast';
 
 interface UseBookingReturn {
-  selectedTickets: TicketSelection;
+  selectedTickets: { [key: string]: number };
   loading: boolean;
   error: string | null;
   handleQuantityChange: (ticketId: string, quantity: number) => void;
@@ -23,13 +23,26 @@ export function useBooking(
   currency: string
 ): UseBookingReturn {
   const navigate = useNavigate();
-  const [selectedTickets, setSelectedTickets] = useState<TicketSelection>(
+  const [selectedTickets, setSelectedTickets] = useState<{ [key: string]: number }>(
     ticketTypes.reduce((acc, ticket) => ({ ...acc, [ticket.id]: 0 }), {})
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleQuantityChange = (ticketId: string, quantity: number) => {
+    const ticket = ticketTypes.find(t => t.id === ticketId);
+    if (!ticket) return;
+
+    if (quantity > ticket.available) {
+      toast.error('Not enough tickets available');
+      return;
+    }
+
+    if (quantity > ticket.maxPerOrder) {
+      toast.error(`Maximum ${ticket.maxPerOrder} tickets allowed per order`);
+      return;
+    }
+
     setSelectedTickets(prev => ({
       ...prev,
       [ticketId]: quantity
@@ -39,9 +52,9 @@ export function useBooking(
 
   const calculateTotals = () => {
     const subtotal = ticketTypes.reduce((total, ticket) => {
-      return total + (ticket.price * selectedTickets[ticket.id]);
+      return total + (ticket.price * (selectedTickets[ticket.id] || 0));
     }, 0);
-    const processingFee = subtotal * 0.02;
+    const processingFee = subtotal * 0.02; // 2% processing fee
     return {
       subtotal,
       processingFee,
@@ -55,12 +68,9 @@ export function useBooking(
       setError(null);
 
       // Validate ticket availability
-      const response = await api.post('/tickets/validate', {
-        eventId,
-        tickets: selectedTickets
-      });
-
-      if (!response.data.available) {
+      const validation = await bookingService.validateTickets(eventId, selectedTickets);
+      
+      if (!validation.available) {
         throw new Error('Some tickets are no longer available');
       }
 

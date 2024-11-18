@@ -1,76 +1,48 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, DollarSign, Users, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { analyticsService, DashboardStats } from '../../services/analyticsService';
 import RevenueChart from '../../components/admin/charts/RevenueChart';
 import TicketSalesChart from '../../components/admin/charts/TicketSalesChart';
 import UserGrowthChart from '../../components/admin/charts/UserGrowthChart';
 import CategoryDistributionChart from '../../components/admin/charts/CategoryDistributionChart';
-
-interface AnalyticsData {
-  totalRevenue: number;
-  ticketsSold: number;
-  activeUsers: number;
-  eventsCreated: number;
-  revenueData: { labels: string[]; values: number[] };
-  ticketSalesData: { labels: string[]; values: number[] };
-  userGrowthData: { labels: string[]; values: number[] };
-  categoryData: { labels: string[]; values: number[] };
-  topEvents: Array<{
-    id: string;
-    title: string;
-    ticketsSold: number;
-    revenue: number;
-    occupancy: number;
-  }>;
-}
+import { formatCurrency } from '../../utils/formatters';
+import toast from 'react-hot-toast';
 
 export default function Analytics() {
   const [timeRange, setTimeRange] = useState('30d');
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchAnalytics = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/analytics?timeRange=${timeRange}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch analytics data');
-        }
-
-        const data = await response.json();
-        setAnalyticsData(data);
-        setError(null);
-      } catch (err) {
-        setError('Failed to load analytics data');
-        console.error('Error fetching analytics:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchAnalytics();
   }, [timeRange]);
 
+  const fetchAnalytics = async () => {
+    try {
+      setLoading(true);
+      const data = await analyticsService.getDashboardStats();
+      setStats(data);
+    } catch (error) {
+      toast.error('Failed to load analytics data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
 
-  if (error || !analyticsData) {
+  if (!stats) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600">{error || 'Failed to load analytics'}</p>
+        <p className="text-red-600">Failed to load analytics</p>
         <button 
-          onClick={() => window.location.reload()}
+          onClick={fetchAnalytics}
           className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
         >
           Retry
@@ -82,7 +54,7 @@ export default function Analytics() {
   const metrics = [
     {
       title: 'Total Revenue',
-      value: `GHS ${analyticsData.totalRevenue.toLocaleString()}`,
+      value: formatCurrency(stats.totalRevenue, 'GHS'),
       change: '+12.5%',
       trend: 'up',
       icon: DollarSign,
@@ -90,7 +62,7 @@ export default function Analytics() {
     },
     {
       title: 'Ticket Sales',
-      value: analyticsData.ticketsSold.toLocaleString(),
+      value: stats.ticketsSold.toLocaleString(),
       change: '+23.1%',
       trend: 'up',
       icon: TrendingUp,
@@ -98,15 +70,15 @@ export default function Analytics() {
     },
     {
       title: 'Active Users',
-      value: analyticsData.activeUsers.toLocaleString(),
+      value: stats.totalUsers.toLocaleString(),
       change: '+18.2%',
       trend: 'up',
       icon: Users,
       color: 'indigo'
     },
     {
-      title: 'Events Created',
-      value: analyticsData.eventsCreated.toString(),
+      title: 'Total Events',
+      value: stats.totalEvents.toString(),
       change: '+15.3%',
       trend: 'up',
       icon: Calendar,
@@ -161,22 +133,14 @@ export default function Analytics() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-xl shadow-sm">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Revenue Overview</h2>
-          <RevenueChart data={analyticsData.revenueData} />
+          <RevenueChart data={stats.userGrowth} />
         </div>
         <div className="bg-white p-6 rounded-xl shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Ticket Sales</h2>
-          <TicketSalesChart data={analyticsData.ticketSalesData} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">User Growth</h2>
-          <UserGrowthChart data={analyticsData.userGrowthData} />
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Category Distribution</h2>
-          <CategoryDistributionChart data={analyticsData.categoryData} />
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Sales by Category</h2>
+          <CategoryDistributionChart data={{
+            labels: stats.salesByCategory.map(item => item.category),
+            values: stats.salesByCategory.map(item => item.total)
+          }} />
         </div>
       </div>
 
@@ -195,11 +159,13 @@ export default function Analytics() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {analyticsData.topEvents.map((event) => (
+                {stats.topEvents.map((event) => (
                   <tr key={event.id}>
                     <td className="px-6 py-4 text-sm text-gray-900">{event.title}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{event.ticketsSold}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">GHS {event.revenue}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {formatCurrency(event.revenue, 'GHS')}
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center">
                         <div className="flex-1 h-2 bg-gray-100 rounded-full mr-2">

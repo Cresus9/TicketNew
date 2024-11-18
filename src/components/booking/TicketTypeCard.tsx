@@ -1,10 +1,10 @@
 import React from 'react';
-import { TicketType } from '../../.././backend/src/types/event'
+import { Info } from 'lucide-react';
+import { TicketType } from '../../types/event';
 import TicketCounter from '../tickets/TicketCounter';
 import TicketAvailabilityIndicator from '../tickets/TicketAvailabilityIndicator';
 
 interface TicketTypeCardProps {
-  eventId: string;
   ticket: TicketType;
   quantity: number;
   currency: string;
@@ -12,15 +12,31 @@ interface TicketTypeCardProps {
 }
 
 export default function TicketTypeCard({
-  eventId,
   ticket,
   quantity,
   currency,
   onQuantityChange
 }: TicketTypeCardProps) {
-  const isAvailable = ticket.status === 'available' || ticket.status === 'limited';
-  const isSoldOut = ticket.status === 'soldout';
-  const isUpcoming = ticket.status === 'upcoming';
+  const [showDetails, setShowDetails] = React.useState(false);
+
+  if (ticket.status === 'SOLD_OUT') {
+    return (
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">{ticket.name}</h3>
+            <p className="text-gray-600">{ticket.description}</p>
+            <p className="text-lg font-bold text-gray-400 mt-2">
+              {currency} {ticket.price}
+            </p>
+          </div>
+          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
+            Sold Out
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4">
@@ -29,8 +45,16 @@ export default function TicketTypeCard({
           <h3 className="text-lg font-semibold text-gray-900">{ticket.name}</h3>
           <p className="text-gray-600">{ticket.description}</p>
           
-          {/* Benefits */}
-          {ticket.benefits.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowDetails(!showDetails)}
+            className="flex items-center gap-1 text-sm text-indigo-600 mt-2 hover:text-indigo-700"
+          >
+            <Info className="h-4 w-4" />
+            {showDetails ? 'Hide details' : 'Show details'}
+          </button>
+
+          {showDetails && ticket.benefits && (
             <ul className="mt-2 space-y-1">
               {ticket.benefits.map((benefit, index) => (
                 <li key={index} className="flex items-center text-sm text-gray-600">
@@ -46,39 +70,19 @@ export default function TicketTypeCard({
           </p>
         </div>
 
-        {isAvailable ? (
-          <TicketCounter
-            available={ticket.available}
-            quantity={quantity}
-            maxPerOrder={ticket.maxPerOrder}
-            onChange={onQuantityChange}
-          />
-        ) : (
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-            isSoldOut ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
-          }`}>
-            {isSoldOut ? 'Sold Out' : 'Coming Soon'}
-          </span>
-        )}
-      </div>
-
-      {isAvailable && (
-        <TicketAvailabilityIndicator
-          eventId={eventId}
-          ticketType={ticket.id}
-          initialAvailable={ticket.available}
-          totalCapacity={ticket.available + ticket.maxPerOrder}
+        <TicketCounter
+          available={ticket.available}
+          quantity={quantity}
+          maxPerOrder={ticket.maxPerOrder}
+          onChange={onQuantityChange}
         />
-      )}
-
-      {/* Sales Period */}
-      <div className="mt-4 text-sm text-gray-500">
-        {isUpcoming ? (
-          <p>Sales start: {new Date(ticket.salesStart).toLocaleDateString()}</p>
-        ) : (
-          <p>Sales end: {new Date(ticket.salesEnd).toLocaleDateString()}</p>
-        )}
       </div>
+
+      <TicketAvailabilityIndicator
+        available={ticket.available}
+        total={ticket.quantity}
+        status={ticket.status}
+      />
     </div>
   );
 }

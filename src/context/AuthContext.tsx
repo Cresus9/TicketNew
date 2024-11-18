@@ -2,22 +2,26 @@ import React, { createContext, useContext, useState } from 'react';
 import { authService } from '../services/authService';
 import toast from 'react-hot-toast';
 
-interface User {
+export interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
+  role: 'USER' | 'ADMIN';
+  phone?: string;
+  location?: string;
+  bio?: string;
 }
 
 export interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  loading: boolean;
   token: string | null;
+  loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
+  updateUserData: (data: Partial<User>) => void;
 }
 
 interface RegisterData {
@@ -33,8 +37,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
   const [token, setToken] = useState<string | null>(authService.getToken());
+  const [loading, setLoading] = useState(true);
 
   React.useEffect(() => {
     const initAuth = async () => {
@@ -45,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
           authService.removeToken();
           setToken(null);
+          setUser(null);
         }
       }
       setLoading(false);
@@ -84,16 +89,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     toast.success('Logged out successfully');
   };
 
+  const updateUserData = (data: Partial<User>) => {
+    if (user) {
+      setUser({ ...user, ...data });
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
       isAuthenticated: !!user,
       isAdmin: user?.role === 'ADMIN',
-      loading,
       token,
+      loading,
       login,
       register,
-      logout
+      logout,
+      updateUserData
     }}>
       {children}
     </AuthContext.Provider>
